@@ -1,0 +1,83 @@
+name: Model Training Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      train_samples:
+        description: 'Number of training samples'
+        required: false
+        default: '10000'
+      num_epochs:
+        description: 'Number of training epochs'
+        required: false
+        default: '3'
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install torch transformers datasets accelerate sacrebleu tqdm sentencepiece
+    
+    - name: Validate training script
+      run: |
+        python -m py_compile train2.py
+        echo "✅ Training script is valid"
+    
+    - name: Display script summary
+      run: |
+        echo "========================================="
+        echo "📊 Machine Translation Fine-tuning"
+        echo "========================================="
+        echo "Model: Helsinki-NLP/opus-mt-en-vi"
+        echo "Task: English IT -> Vietnamese IT"
+        echo "Training samples: ${{ github.event.inputs.train_samples }}"
+        echo "Epochs: ${{ github.event.inputs.num_epochs }}"
+        echo "========================================="
+    
+    - name: Check data availability
+      run: |
+        echo "Note: This workflow validates scripts."
+        echo "For actual training, download and configure data locally."
+        echo "See README.md for detailed instructions."
+
+  test-inference:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install torch transformers tqdm sentencepiece
+    
+    - name: Validate inference script
+      run: |
+        python -m py_compile testdich.py
+        echo "✅ Inference script is valid"
+    
+    - name: Display inference capabilities
+      run: |
+        echo "========================================="
+        echo "🔄 Translation Inference Module"
+        echo "========================================="
+        echo "Model: fine-tuned Helsinki-NLP/opus-mt-en-vi"
+        echo "Input: English IT text"
+        echo "Output: Vietnamese IT translation"
+        echo "========================================="

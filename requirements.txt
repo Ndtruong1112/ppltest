@@ -1,0 +1,19 @@
+# Core ML/DL Libraries
+torch>=2.0.0
+transformers>=4.35.0
+datasets>=2.14.0
+evaluate>=0.4.0
+accelerate>=0.24.0
+
+# Evaluation Metrics
+sacrebleu>=2.3.0
+
+# Utilities
+tqdm>=4.66.0
+sentencepiece>=0.2.0
+numpy>=1.24.0
+
+# Optional: Development tools
+black>=23.0.0
+flake8>=6.0.0
+isort>=5.12.0
