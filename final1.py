@@ -87,9 +87,13 @@ print("="*60)
 print(f"BLEU Score: {results['score']:.2f}")
 print(f"Precisions (1-gram, 2-gram, 3-gram, 4-gram): {results['precisions']}")
 print(f"BP (Brevity Penalty): {results['bp']:.4f}")
-print(f"Ratio (độ dài dịch / độ dài chuẩn): {results['ratio']:.4f}")
-print(f"Tổng độ dài dịch: {results['translation_length']}")
-print(f"Tổng độ dài chuẩn: {results['reference_length']}")
+if 'ratio' in results:
+    print(f"Ratio (độ dài dịch / độ dài chuẩn): {results['ratio']:.4f}")
+if 'translation_length' in results:
+    print(f"Tổng độ dài dịch: {results['translation_length']}")
+if 'reference_length' in results:
+    print(f"Tổng độ dài chuẩn: {results['reference_length']}")
+
 print("="*60)
 
 # ==================== HIỂN THỊ VÍ DỤ ====================

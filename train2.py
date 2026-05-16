@@ -97,22 +97,21 @@ if __name__ == '__main__':
         output_dir=output_dir,
         evaluation_strategy="epoch",
         learning_rate=2e-5,
-        per_device_train_batch_size=32 if torch.cuda.is_available() else 8,  # GPU: 32, CPU: 8
-        per_device_eval_batch_size=32 if torch.cuda.is_available() else 8,
+        per_device_train_batch_size=2,
+        per_device_eval_batch_size=2,
         num_train_epochs=3,
         weight_decay=0.01,
         save_total_limit=3,
         predict_with_generate=True,
-        fp16=torch.cuda.is_available(),  # BẮT BUỘC DÙNG GPU
+        fp16=torch.cuda.is_available(),
         push_to_hub=False,
         report_to="none",
         logging_steps=50,
         save_steps=500,
-        gradient_accumulation_steps=1,
-        # GPU-specific optimizations
+        gradient_accumulation_steps=8 if torch.cuda.is_available() else 1,
         dataloader_pin_memory=True if torch.cuda.is_available() else False,
-        dataloader_num_workers=4 if torch.cuda.is_available() else 0,
-    )
+        dataloader_num_workers=2 if torch.cuda.is_available() else 0,
+)
 
     trainer = Seq2SeqTrainer(
         model=model,

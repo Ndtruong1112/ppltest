@@ -78,6 +78,15 @@ Write-Host ""
 $env:PYTHONIOENCODING = 'utf-8'
 python train2.py
 
+if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "========================================" -ForegroundColor Red
+    Write-Host "❌ Training failed!" -ForegroundColor Red
+    Write-Host "Hãy giảm batch size trong train2.py hoặc đóng bớt ứng dụng đang dùng GPU." -ForegroundColor Yellow
+    Write-Host "========================================" -ForegroundColor Red
+    exit $LASTEXITCODE
+}
+
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "✅ Training completed!" -ForegroundColor Green
