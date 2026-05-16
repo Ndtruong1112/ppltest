@@ -32,7 +32,7 @@ Mục tiêu của dự án là:
 ## 4. Cấu trúc dự án
 
 Project code nằm ở:
-- `C:\Users\Admin\pplnckh-1`
+- `C:\Users\Admin\ppltest`
 
 Dữ liệu, model, checkpoint, cache nên đặt ở:
 - `D:\Users\Admin\Downloads\PhoMT`
