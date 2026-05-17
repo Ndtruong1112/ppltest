@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import sys
 
 import torch
 from evaluate import load
@@ -9,21 +10,35 @@ from tqdm import tqdm
 from project_config import DATA_DIR, MODEL_DIR, configure_runtime_dirs
 
 # ==================== CẤU HÌNH ====================
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 configure_runtime_dirs()
 model_path = str(MODEL_DIR)
 base_dir = str(DATA_DIR)
-max_samples = None  # None = test toàn bộ, hoặc số lượng câu cụ thể (ví dụ: 100)
+max_samples = int(os.getenv("PHOMT_BLEU_MAX_SAMPLES", "0")) or None
+batch_size = int(os.getenv("PHOMT_BLEU_BATCH_SIZE", "32" if torch.cuda.is_available() else "8"))
+num_beams = int(os.getenv("PHOMT_BLEU_NUM_BEAMS", "1"))
 
 # Kiểm tra thiết bị
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"--- THIẾT BỊ ĐANG DÙNG: {device.upper()} ---\n")
+
+if torch.cuda.is_available():
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cuda.matmul.allow_tf32 = True
 
 # ==================== LOAD MÔ HÌNH ====================
 print("📦 Đang load mô hình đã train...")
 try:
     metric = load("sacrebleu")
     tokenizer = AutoTokenizer.from_pretrained(model_path)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_path).to(device)
+    model_kwargs = {}
+    if torch.cuda.is_available():
+        model_kwargs["torch_dtype"] = torch.float16
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_path, **model_kwargs).to(device)
     model.eval()
     print("✅ Mô hình đã load thành công!\n")
 except Exception as e:
@@ -52,13 +67,13 @@ if max_samples:
     test_vi = test_vi[:max_samples]
 
 print(f"✅ Đã load {len(test_en)} câu test\n")
+print(f"⚙️ Cấu hình đánh giá: batch_size={batch_size}, num_beams={num_beams}, max_samples={max_samples or 'full'}\n")
 
 # ==================== DỊCH TOÀN BỘ BỘ TEST ====================
 print("🔄 Đang dịch...")
 predictions = []
-batch_size = 8
 
-with torch.no_grad():
+with torch.inference_mode():
     for i in tqdm(range(0, len(test_en), batch_size), desc="Translating"):
         batch = test_en[i:i + batch_size]
         
@@ -66,8 +81,12 @@ with torch.no_grad():
         inputs = tokenizer(batch, return_tensors="pt", padding=True, truncation=True, max_length=128).to(device)
         
         # Dự đoán dịch
-        output_ids = model.generate(**inputs, max_length=128)
-        
+        output_ids = model.generate(
+            **inputs, 
+            max_new_tokens=128,
+            num_beams=num_beams,
+            early_stopping=(num_beams > 1)
+)
         # Decode thành text
         preds_batch = tokenizer.batch_decode(output_ids, skip_special_tokens=True)
         predictions.extend(preds_batch)
