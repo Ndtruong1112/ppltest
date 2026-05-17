@@ -2,7 +2,7 @@
 
 ## 1. Tổng quan đề tài
 
-Đây là dự án fine-tuning mô hình dịch máy để dịch tài liệu tổng quát từ tiếng Anh sang tiếng Việt.
+Đây là dự án fine-tuning mô hình dịch máy để dịch câu và tài liệu từ tiếng Anh sang tiếng Việt, đồng thời đánh giá mức cải thiện trước và sau quá trình tinh chỉnh.
 
 Ý tưởng chính:
 - Không train mô hình từ đầu.
@@ -36,7 +36,9 @@ Dữ liệu, model, checkpoint, cache nên đặt ở:
 Các file chính:
 - `train2.py`: script train chính
 - `testdich.py`: script dịch thử
-- `final1.py`: script đánh giá BLEU
+- `final1.py`: script đánh giá nhanh mô hình đã fine-tune
+- `testmodelorigin.py`: script đánh giá mô hình gốc
+- `compare_before_after.py`: script so sánh mô hình gốc và mô hình đã fine-tune
 - `project_config.py`: quản lý đường dẫn và cache
 - `run_training.ps1`: script chạy train để xác nhận GPU
 - `setup_env_d.ps1`: tạo virtualenv GPU trên ổ D
@@ -55,7 +57,8 @@ Luồng chuẩn của dự án hiện tại là:
 8. Lưu checkpoint vào `results/`
 9. Lưu mô hình cuối vào `final_model_it/`
 10. Test dịch bằng `testdich.py`
-11. Đánh giá BLEU bằng `final1.py`
+11. Đánh giá mô hình sau fine-tune bằng `final1.py`
+12. So sánh mô hình gốc và mô hình đã fine-tune bằng `compare_before_after.py`
 
 Nói ngắn gọn để thuyết trình:
 "Pipeline của hệ thống gồm 3 pha: chuẩn bị môi trường, huấn luyện mô hình, và đánh giá kết quả."
@@ -155,13 +158,31 @@ Nó:
 
 ### `final1.py`
 
-Dùng để đánh giá mô hình.
+Dùng để đánh giá nhanh mô hình đã fine-tune.
 
 Nó:
 - Nạp tập test
 - Dùng mô hình đã train để dịch toàn bộ tập test
 - So sánh với câu dịch chuẩn
-- Tính BLEU score
+- Tính BLEU score trên một số lượng mẫu có thể cấu hình
+
+### `testmodelorigin.py`
+
+Dùng để đánh giá mô hình gốc `Helsinki-NLP/opus-mt-en-vi`.
+
+Nó:
+- Nạp mô hình gốc chưa fine-tune
+- Dịch tập test
+- Tính BLEU, chrF++, TER và thời gian suy luận
+
+### `compare_before_after.py`
+
+Đây là file quan trọng cho phần báo cáo và thuyết trình.
+
+Nó:
+- Chạy mô hình gốc và mô hình đã fine-tune trên cùng một tập test
+- So sánh BLEU, chrF++, TER, thời gian dịch
+- In ra ví dụ trước/sau để đánh giá định tính
 
 ### `project_config.py`
 
@@ -233,6 +254,18 @@ python testdich.py
 
 ```powershell
 python final1.py
+```
+
+Đánh giá mô hình gốc:
+
+```powershell
+python testmodelorigin.py
+```
+
+So sánh trước và sau fine-tune:
+
+```powershell
+python compare_before_after.py
 ```
 
 ## 13. Cách điều chỉnh khi chạy trên máy khác

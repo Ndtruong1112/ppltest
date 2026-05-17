@@ -6,7 +6,7 @@
 ```powershell
 .\setup_env_d.ps1
 ```
-*Script này tạo môi trường ở `D:\Users\Admin\venvs\pplnckh-1-gpu` và cài PyTorch CUDA*
+*Script này tạo môi trường ở `D:\Users\Admin\venvs\ppltest-gpu` và cài PyTorch CUDA*
 
 Nếu bạn đã có sẵn env ở ổ D, set biến môi trường trước khi chạy:
 ```powershell
@@ -31,6 +31,11 @@ python train2.py
 ### Step 3: Đánh Giá BLEU
 ```bash
 python final1.py
+```
+
+### Step 4: So Sánh Trước Và Sau Fine-tune
+```bash
+python compare_before_after.py
 ```
 
 ---
@@ -62,11 +67,11 @@ Ví dụ:
 D:/Users/Admin/Downloads/PhoMT/
 ├── detokenization/
 │   ├── train/
-│   │   ├── train.en  (10,000 câu)
-│   │   └── train.vi  (10,000 câu)
+│   │   ├── train.en
+│   │   └── train.vi
 │   └── test/
-│       ├── test.en   (1,000 câu)
-│       └── test.vi   (1,000 câu)
+│       ├── test.en
+│       └── test.vi
 ├── results/          (Training checkpoints)
 └── final_model_it/   (Output model)
 ```
@@ -93,7 +98,14 @@ D:/Users/Admin/Downloads/PhoMT/
 ### Out of Memory?
 Edit `train2.py`, change:
 ```python
-per_device_train_batch_size=32  # → Change to 16 or 8
+per_device_train_batch_size=2  # → Nếu vẫn lỗi thì đổi xuống 1
+```
+
+Với RTX 4050 6GB hiện tại:
+```python
+per_device_train_batch_size=2
+per_device_eval_batch_size=2
+gradient_accumulation_steps=8
 ```
 
 ### Training too slow?
@@ -108,7 +120,9 @@ per_device_train_batch_size=32  # → Change to 16 or 8
 | File | Purpose |
 |------|---------|
 | `train2.py` | Main training script (ổ D) |
-| `final1.py` | BLEU evaluation (ổ D) |
+| `final1.py` | Đánh giá nhanh mô hình đã train |
+| `testmodelorigin.py` | Đánh giá mô hình gốc |
+| `compare_before_after.py` | So sánh trước và sau fine-tune |
 | `testdich.py` | Translation inference |
 | `setup_env_d.ps1` | Tạo env GPU trên ổ D |
 | `setup_pytorch_cuda.py` | GPU setup helper |
@@ -130,6 +144,7 @@ per_device_train_batch_size=32  # → Change to 16 or 8
    # Train multiple times
    python train2.py
    python final1.py
+   python compare_before_after.py
    ```
 
 3. **Custom training settings:**

@@ -18,7 +18,7 @@ if hasattr(sys.stderr, "reconfigure"):
 configure_runtime_dirs()
 model_path = str(MODEL_DIR)
 base_dir = str(DATA_DIR)
-max_samples = int(os.getenv("PHOMT_BLEU_MAX_SAMPLES", "0")) or None
+max_samples = int(os.getenv("PHOMT_BLEU_MAX_SAMPLES", "1000")) or None
 batch_size = int(os.getenv("PHOMT_BLEU_BATCH_SIZE", "32" if torch.cuda.is_available() else "8"))
 num_beams = int(os.getenv("PHOMT_BLEU_NUM_BEAMS", "1"))
 

@@ -111,7 +111,7 @@ python train2.py
 
 ### Issue: `Out of Memory`
 **Solutions:**
-- Reduce batch size: Change `per_device_train_batch_size=32` to `16` or `8` in `train2.py`
+- Reduce batch size: Change `per_device_train_batch_size=2` to `1` in `train2.py` if RTX 4050 6GB still runs out of memory
 - Use gradient accumulation: Already enabled
 - Use mixed precision: FP16 is enabled automatically
 

@@ -13,7 +13,7 @@ print("🔧 PyTorch CUDA Setup")
 print("="*60)
 
 print(f"\n🐍 Python env: {sys.executable}")
-print("Khuyen nghi: dung env tren o D (vi du D:\\Users\\Admin\\venvs\\pplnckh-1-gpu)")
+print("Khuyen nghi: dung env tren o D (vi du D:\\Users\\Admin\\venvs\\ppltest-gpu)")
 
 index_url = os.getenv("PYTORCH_INDEX_URL", "https://download.pytorch.org/whl/cu121")
 

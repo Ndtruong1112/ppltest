@@ -1,5 +1,5 @@
 param(
-    [string]$VenvDir = "D:\Users\Admin\venvs\pplnckh-1-gpu",
+    [string]$VenvDir = "D:\Users\Admin\venvs\ppltest-gpu",
     [string]$WorkRoot = "D:\Users\Admin\Downloads\PhoMT",
     [string]$PyTorchIndexUrl = "https://download.pytorch.org/whl/cu121"
 )
