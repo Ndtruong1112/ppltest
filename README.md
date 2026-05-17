@@ -12,10 +12,10 @@
 ## 2. Mục tiêu dự án
 
 Mục tiêu của dự án là:
-- Nhận câu tiếng Anh chuyên ngành IT.
+- Nhận câu tiếng Anh chuyên ngành.
 - Sinh ra câu tiếng Việt tương ứng.
-- Đánh giá chất lượng bằng BLEU score.
-- So sánh với mô hình gốc hoặc với các mô hình phổ biến.
+- Đánh giá chất lượng bằng BLEU score và 1 số chỉ số khác.
+- So sánh với mô hình gốc.
 ## 3. Công nghệ sử dụng
 
 - Python
@@ -35,10 +35,12 @@ Dữ liệu, model, checkpoint, cache nên đặt ở:
 
 Các file chính:
 - `train2.py`: script train chính
+- `train_lora.py`: script fine-tune LoRA (PEFT)
 - `testdich.py`: script dịch thử
 - `final1.py`: script đánh giá nhanh mô hình đã fine-tune
 - `testmodelorigin.py`: script đánh giá mô hình gốc
 - `compare_before_after.py`: script so sánh mô hình gốc và mô hình đã fine-tune
+- `compare_lora.py`: script so sánh mô hình gốc và mô hình LoRA
 - `project_config.py`: quản lý đường dẫn và cache
 - `run_training.ps1`: script chạy train để xác nhận GPU
 - `setup_env_d.ps1`: tạo virtualenv GPU trên ổ D
@@ -60,7 +62,10 @@ Luồng chuẩn của dự án hiện tại là:
 11. Đánh giá mô hình sau fine-tune bằng `final1.py`
 12. So sánh mô hình gốc và mô hình đã fine-tune bằng `compare_before_after.py`
 
-Nói ngắn gọn để thuyết trình:
+Ngoài full fine-tuning, repo hiện cũng có hướng PEFT riêng bằng LoRA:
+- `train_lora.py`: huấn luyện LoRA adapter
+- `compare_lora.py`: so sánh mô hình gốc với mô hình LoRA
+
 "Pipeline của hệ thống gồm 3 pha: chuẩn bị môi trường, huấn luyện mô hình, và đánh giá kết quả."
 
 ## 6. Vì sao phải đưa môi trường sang ổ D
@@ -184,6 +189,25 @@ Nó:
 - So sánh BLEU, chrF++, TER, thời gian dịch
 - In ra ví dụ trước/sau để đánh giá định tính
 
+### `train_lora.py`
+
+Đây là file PEFT riêng của repo.
+
+Nó:
+- Nạp mô hình gốc `Helsinki-NLP/opus-mt-en-vi`
+- Gắn LoRA vào các tầng attention
+- Huấn luyện chỉ phần tham số LoRA
+- Lưu adapter LoRA riêng, không ghi đè mô hình full fine-tune
+
+### `compare_lora.py`
+
+File này dùng để đánh giá hướng PEFT.
+
+Nó:
+- Chạy mô hình gốc
+- Nạp LoRA adapter lên mô hình gốc
+- So sánh BLEU, chrF++, TER và thời gian dịch
+
 ### `project_config.py`
 
 File này dùng để thống nhất đường dẫn.
@@ -266,6 +290,18 @@ So sánh trước và sau fine-tune:
 
 ```powershell
 python compare_before_after.py
+```
+
+Train LoRA (PEFT):
+
+```powershell
+python train_lora.py
+```
+
+So sánh mô hình gốc và LoRA:
+
+```powershell
+python compare_lora.py
 ```
 
 ## 13. Cách điều chỉnh khi chạy trên máy khác
