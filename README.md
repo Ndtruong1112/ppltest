@@ -2,15 +2,12 @@
 
 ## 1. Tổng quan đề tài
 
-Đây là dự án fine-tuning mô hình dịch máy để dịch tài liệu chuyên ngành IT từ tiếng Anh sang tiếng Việt.
+Đây là dự án fine-tuning mô hình dịch máy để dịch tài liệu tổng quát từ tiếng Anh sang tiếng Việt.
 
 Ý tưởng chính:
 - Không train mô hình từ đầu.
 - Sử dụng mô hình có sẵn `Helsinki-NLP/opus-mt-en-vi`.
-- Fine-tune tiếp trên tập dữ liệu chuyên ngành IT để mô hình dịch đúng ngữ cảnh kỹ thuật hơn.
-
-Nói ngắn gọn để thuyết trình:
-"Đề tài của em tập trung vào việc chuyển một mô hình dịch tổng quát thành mô hình dịch chuyên biệt cho lĩnh vực IT bằng kỹ thuật fine-tuning."
+- Fine-tune tiếp trên tập dữ liệu PhoMT để mô hình dịch đúng ngữ cảnh hơn.
 
 ## 2. Mục tiêu dự án
 
@@ -18,8 +15,7 @@ Mục tiêu của dự án là:
 - Nhận câu tiếng Anh chuyên ngành IT.
 - Sinh ra câu tiếng Việt tương ứng.
 - Đánh giá chất lượng bằng BLEU score.
-- Tận dụng GPU để giảm thời gian huấn luyện.
-
+- So sánh với mô hình gốc hoặc với các mô hình phổ biến.
 ## 3. Công nghệ sử dụng
 
 - Python
