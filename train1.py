@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# ⚠️ DEPRECATED: This script was an initial prototype.
+# Please use train2.py for full fine-tuning or train_lora.py for LoRA fine-tuning.
 import os
 from datasets import DatasetDict, Dataset
 from transformers import AutoTokenizer

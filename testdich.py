@@ -12,7 +12,7 @@ model_path = str(MODEL_DIR)
 print("Đang nạp bộ não IT vừa train...")
 device = "cuda" if torch.cuda.is_available() else "cpu"
 tokenizer = AutoTokenizer.from_pretrained(model_path)
-model = AutoModelForSeq2SeqLM.from_pretrained(model_path).to(device)
+model = AutoModelForSeq2SeqLM.from_pretrained(model_path, use_safetensors=True).to(device)
 
 # 3. Hàm dịch thuật
 def translate_it(text):

@@ -35,7 +35,9 @@ print("📦 Đang load mô hình đã train...")
 try:
     metric = load("sacrebleu")
     tokenizer = AutoTokenizer.from_pretrained(model_path)
-    model_kwargs = {}
+    model_kwargs = {
+        "use_safetensors": True
+    }
     if torch.cuda.is_available():
         model_kwargs["torch_dtype"] = torch.float16
     model = AutoModelForSeq2SeqLM.from_pretrained(model_path, **model_kwargs).to(device)

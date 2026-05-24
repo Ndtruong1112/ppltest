@@ -28,7 +28,9 @@ def read_txt(path):
 
 
 def load_model_and_tokenizer(model_name_or_path, device):
-    model_kwargs = {}
+    model_kwargs = {
+        "use_safetensors": True
+    }
     if device == "cuda":
         model_kwargs["torch_dtype"] = torch.float16
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)

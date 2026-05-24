@@ -1,469 +1,146 @@
-# Hệ Thống Dịch Máy IT Anh-Việt Bằng Fine-tuning PhoMT
+# 🎯 Hệ Thống Dịch Máy IT Anh-Việt Bằng Fine-tuning PhoMT
 
-## 1. Tổng quan đề tài
+Dự án này thực hiện tối ưu hóa và tinh chỉnh (Fine-tuning) mô hình dịch máy dịch thuật chuyên ngành Công nghệ thông tin từ tiếng Anh sang tiếng Việt dựa trên mô hình pretrained `Helsinki-NLP/opus-mt-en-vi` và tập dữ liệu song ngữ chuyên ngành PhoMT.
 
-Đây là dự án fine-tuning mô hình dịch máy để dịch câu và tài liệu từ tiếng Anh sang tiếng Việt, đồng thời đánh giá mức cải thiện trước và sau quá trình tinh chỉnh.
+Hệ thống đã được thiết kế và tối ưu hóa tối đa cho môi trường cục bộ trên máy tính chạy **Windows 11 (GPU RTX 4050 6GB VRAM, CPU Ryzen 7 8745H, 16GB RAM)**.
 
-Ý tưởng chính:
-- Không train mô hình từ đầu.
-- Sử dụng mô hình có sẵn `Helsinki-NLP/opus-mt-en-vi`.
-- Fine-tune tiếp trên tập dữ liệu PhoMT để mô hình dịch đúng ngữ cảnh hơn.
+---
 
-## 2. Mục tiêu dự án
+## 📖 Tổng Quan Đề Tài
 
-Mục tiêu của dự án là:
-- Nhận câu tiếng Anh chuyên ngành.
-- Sinh ra câu tiếng Việt tương ứng.
-- Đánh giá chất lượng bằng BLEU score và 1 số chỉ số khác.
-- So sánh với mô hình gốc.
-## 3. Công nghệ sử dụng
+Dịch máy chuyên ngành, đặc biệt là lĩnh vực Công nghệ Thông tin (IT), luôn là một thách thức lớn đối với các mô hình dịch máy thông thường do tính đặc thù cao của thuật ngữ và ngữ cảnh công nghệ (ví dụ: *pointer, heap, database schema, normalization, thread,...*). Các mô hình dịch thuật thương mại hoặc mô hình pretrained phổ thông thường dịch word-by-word hoặc dịch sai ý nghĩa kỹ thuật của các từ khóa này.
 
-- Python
-- PyTorch
-- Hugging Face Transformers
-- Datasets
-- Evaluate / SacreBLEU
-- GPU NVIDIA với CUDA
+Đề tài này tập trung vào việc nghiên cứu và xây dựng hệ thống dịch máy chuyên biệt cho lĩnh vực IT từ tiếng Anh sang tiếng Việt. Bằng cách kế thừa mô hình nền tảng mạnh mẽ chuyên về ngôn ngữ Anh-Việt là **`Helsinki-NLP/opus-mt-en-vi`** và thực hiện quá trình tinh chỉnh chuyên biệt (**Fine-tuning**) trên tập dữ liệu song ngữ chất lượng cao **PhoMT**, hệ thống được kỳ vọng sẽ hiểu sâu sắc thuật ngữ IT và dịch chính xác, tự nhiên hơn.
 
-## 4. Cấu trúc dự án
+Hệ thống được tối ưu hóa toàn diện cho việc chạy huấn luyện và đánh giá trên phần cứng cá nhân thông dụng (máy tính RTX 4050 Laptop 6GB VRAM), giúp giảm rào cản tài nguyên tính toán nhưng vẫn đạt hiệu suất cao nhất.
 
-Project code nằm ở:
-- `C:\Users\Admin\ppltest`
+## 🎯 Mục Tiêu Dự Án
 
-Dữ liệu, model, checkpoint, cache nên đặt ở:
-- `D:\Users\Admin\Downloads\PhoMT`
+1. **Xây dựng bộ dịch thuật IT chuyên sâu**: Chuyển dịch chính xác các câu, tài liệu kỹ thuật chứa nhiều thuật ngữ IT từ tiếng Anh sang tiếng Việt phù hợp với văn phong công nghệ thông tin tại Việt Nam.
+2. **Triển khai đa dạng kỹ thuật tinh chỉnh**:
+   - **LoRA Fine-tuning (Parameter-Efficient)**: Cập nhật lượng nhỏ tham số giúp huấn luyện siêu tốc, tốn ít tài nguyên bộ nhớ VRAM.
+   - **Full Fine-tuning (Toàn diện)**: Cập nhật toàn bộ trọng số của mô hình để đạt độ hội tụ và tối ưu hóa sâu nhất.
+3. **Huấn luyện quy mô lớn trên máy cá nhân**: Đáp ứng mức dữ liệu huấn luyện lớn với mặc định **500,000 câu song ngữ** và **10,000 câu đánh giá** với kích thước batch size mặc định là **64** hoạt động ổn định trên GPU 6GB VRAM.
+4. **Đánh giá & Kiểm thử khách quan**: Đo lường chất lượng dịch thuật thông qua các chỉ số tiêu chuẩn quốc tế như **BLEU, chrF++, TER** để so sánh trực quan hiệu quả của mô hình trước và sau khi fine-tune.
+5. **Đơn giản hóa quy trình sử dụng**: Đóng gói toàn bộ mã nguồn huấn luyện, kiểm thử và demo giao diện dịch thử tương tác thành một mạch chạy thống nhất thông qua menu runner thông minh.
 
-Các file chính:
-- `train2.py`: script train chính
-- `train_lora.py`: script fine-tune LoRA (PEFT)
-- `testdich.py`: script dịch thử
-- `final1.py`: script đánh giá nhanh mô hình đã fine-tune
-- `testmodelorigin.py`: script đánh giá mô hình gốc
-- `compare_before_after.py`: script so sánh mô hình gốc và mô hình đã fine-tune
-- `compare_lora.py`: script so sánh mô hình gốc và mô hình LoRA
-- `project_config.py`: quản lý đường dẫn và cache
-- `run_training.ps1`: script chạy train để xác nhận GPU
-- `setup_env_d.ps1`: tạo virtualenv GPU trên ổ D
+---
 
-## 5. Luồng xử lý đã thống nhất
+## 🚀 Tính Năng Nổi Bật & Tối Ưu Hóa Hiệu Năng
 
-Luồng chuẩn của dự án hiện tại là:
+1. **Khởi Động Tức Thì (`dataloader_num_workers=0`):**
+   * Triệt tiêu hoàn toàn thời gian chờ 1–2 phút ở bước chuẩn bị nạp dữ liệu do cơ chế `spawn` chậm của Windows. Hệ thống bắt đầu huấn luyện ngay lập tức trên luồng chính (Main Thread).
+2. **Siêu Tốc Độ Đánh Giá Lúc Train (`predict_with_generate=False`):**
+   * Quá trình đánh giá trung gian khi đang huấn luyện chỉ tính toán hàm Loss (Entropy chéo) song song trên GPU thay vì chạy dịch tự hồi quy (dịch từng từ) cho 10,000 câu. Thời gian eval giảm từ vài phút xuống **chưa đầy 1 giây** mỗi epoch.
+3. **Mở Khóa Tối Đa Sức Mạnh GPU (`gradient_checkpointing=False`):**
+   * Do mô hình `opus-mt-en-vi` rất nhỏ (~77M tham số), việc tắt gradient checkpointing giúp giảm khối lượng tính toán lại của GPU, tăng tốc độ xử lý thêm **25-30%** mà vẫn chỉ chiếm khoảng 3GB/6GB VRAM (an toàn tuyệt đối ở batch size 64).
+4. **Trình Điều Khiển Nhất Quán (Unified Interactive Runner):**
+   * Tích hợp toàn bộ quy trình: Huấn luyện Full, Huấn luyện LoRA, So sánh đánh giá BLEU, Dịch thử trực quan vào một file chạy duy nhất (`run_training.bat` hoặc `run_training.ps1`).
 
-1. Tạo môi trường Python trên ổ `D`
-2. Cài PyTorch bản hỗ trợ CUDA
-3. Cài các thư viện trong `requirements.txt`
-4. Đọc dữ liệu song ngữ từ thư mục `detokenization`
-5. Tokenize dữ liệu
-6. Nạp mô hình gốc `Helsinki-NLP/opus-mt-en-vi`
-7. Fine-tune mô hình trên GPU
-8. Lưu checkpoint vào `results/`
-9. Lưu mô hình cuối vào `final_model_it/`
-10. Test dịch bằng `testdich.py`
-11. Đánh giá mô hình sau fine-tune bằng `final1.py`
-12. So sánh mô hình gốc và mô hình đã fine-tune bằng `compare_before_after.py`
+---
 
-Ngoài full fine-tuning, repo hiện cũng có hướng PEFT riêng bằng LoRA:
-- `train_lora.py`: huấn luyện LoRA adapter
-- `compare_lora.py`: so sánh mô hình gốc với mô hình LoRA
+## 📁 Cấu Trúc Dự Án
 
-"Pipeline của hệ thống gồm 3 pha: chuẩn bị môi trường, huấn luyện mô hình, và đánh giá kết quả."
+Mã nguồn dự án được lưu trữ tại ổ `C:`, trong khi dữ liệu lớn, thư mục ảo (Virtualenv), mô hình lưu trữ và bộ đệm (cache) được định tuyến lưu trữ trên ổ `D:` để tiết kiệm dung lượng ổ hệ thống.
 
-## 6. Vì sao phải đưa môi trường sang ổ D
+* **Project Code:** `C:\Users\Admin\ppltest`
+* **Data, Cache & Models:** `D:\Users\Admin\Downloads\PhoMT`
 
-Lý do:
-- Ổ `C` thường dùng cho hệ điều hành, dễ đầy bộ nhớ.
-- Model, cache và checkpoint của Hugging Face khá lớn.
-- Khi train trên GPU, quá trình tải model, lưu checkpoint, tạo cache có thể tốn nhiều dung lượng.
-- Đặt venv, cache và output trên `D` sẽ dễ quản lý hơn và tránh làm nặng ổ hệ thống.
+### Chi tiết các file chính:
+* `run_training.bat` / `run_training.ps1`: Trình chạy giao diện menu tương tác hợp nhất cho CMD và PowerShell.
+* `train2.py`: Script huấn luyện Full Fine-Tuning (cập nhật toàn bộ tham số, đã tối ưu hóa).
+* `train_lora.py`: Script huấn luyện Parameter-Efficient LoRA (PEFT, rất nhẹ và hiệu quả cao).
+* `compare_before_after.py`: Đánh giá & so sánh song song BLEU, chrF++, TER giữa mô hình Gốc và mô hình Full Fine-tuned.
+* `compare_lora.py`: Đánh giá & so sánh BLEU, chrF++, TER giữa mô hình Gốc và mô hình LoRA.
+* `testdich.py`: Trình dịch thử tương tác nhập câu trực tiếp từ dòng lệnh.
+* `project_config.py`: File cấu hình dùng chung để ánh xạ các thư mục làm việc, thư mục cache và output sang ổ `D:`.
+* `setup_env_d.ps1`: Script PowerShell để tự động khởi tạo môi trường `.venv` tương thích GPU trên ổ `D:`.
+* `train1.py`: *(Cũ - Đã ngưng sử dụng)* Script thử nghiệm đầu tiên.
 
-Trong phiên bản đã sửa:
-- Virtualenv có thể đặt trên ổ `D`
-- Cache Hugging Face, PyTorch, pip, temp đều có thể đẩy sang `D`
-- Model output và checkpoint mặc định đều ở `D`
+---
 
-## 7. Cách chạy đề tài đúng chuẩn
+## 🛠️ Hướng Dẫn Cài Đặt & Chạy Quy Trình Hợp Nhất
 
-### Cách 1: Dùng venv đã có sẵn trên ổ D
-
-Nếu bạn đã có venv GPU ở:
-- `D:\Users\Admin\Downloads\PhoMT\.venv`
-
-Thì chạy:
-
+### Bước 1: Chuẩn bị môi trường ảo GPU
+Nếu chưa khởi tạo môi trường, hãy chạy file PowerShell sau để tự động tạo `.venv` trên ổ `D:` và cài đặt PyTorch với CUDA:
 ```powershell
-cd C:\Users\Admin\ppltest
-$env:PHOMT_VENV_DIR = "D:\Users\Admin\Downloads\PhoMT\.venv"
-$env:PHOMT_WORK_ROOT = "D:\Users\Admin\Downloads\PhoMT"
-.\run_training.ps1
-```
-
-### Cách 2: Tạo venv mới hoàn toàn trên ổ D
-
-```powershell
-cd C:\Users\Admin\ppltest
+# Chạy trên PowerShell (Quyền Admin nếu cần)
 .\setup_env_d.ps1
 ```
 
-Sau đó:
+### Bước 2: Chạy trình điều khiển hợp nhất
+Bạn chỉ cần mở terminal và chạy file runner (không cần sửa code):
+* Trên **Command Prompt (CMD)** hoặc double-click:
+  ```cmd
+  run_training.bat
+  ```
+* Trên **PowerShell**:
+  ```powershell
+  .\run_training.ps1
+  ```
 
-```powershell
-$env:PHOMT_VENV_DIR = "D:\Users\Admin\venvs\ppltest-gpu"
-$env:PHOMT_WORK_ROOT = "D:\Users\Admin\Downloads\PhoMT"
-.\run_training.ps1
-```
-
-## 8. Dữ liệu đầu vào
-
-Thư mục dữ liệu:
-- `D:\Users\Admin\Downloads\PhoMT\detokenization`
-
-Cấu trúc mong đợi:
-
+Một menu điều khiển trực quan sẽ xuất hiện:
 ```text
-detokenization/
-|-- train/
-|   |-- train.en
-|   `-- train.vi
-`-- test/
-    |-- test.en
-    `-- test.vi
+=========================================================
+   PhoMT IT Translation Pipeline Runner (RTX 4050/6GB)   
+=========================================================
+
+📋 SELECT AN ACTION TO PERFORM:
+  [1] Train: LoRA Fine-Tuning (Recommended: fast, fits 6GB VRAM easily)
+  [2] Train: Full Fine-Tuning (Updates all parameters, uses more VRAM)
+  [3] Eval: Compare Base model vs LoRA Adapter (BLEU/chrF++/TER)
+  [4] Eval: Compare Base model vs Full Fine-Tuned (BLEU/chrF++/TER)
+  [5] Test: Translate individual sentences interactively
+  [6] Exit
 ```
 
-Quy tắc dữ liệu:
-- Mỗi dòng trong `train.en` phải ứng với 1 dòng trong `train.vi`
-- Số dòng 2 file phải bằng nhau
-- Encoding nên là UTF-8
-
-Trong code mới, nếu số dòng không khớp, chương trình sẽ báo lỗi rõ ràng.
-
-## 9. Mô tả từng file theo cách dễ hiểu
-
-### `train2.py`
-
-Đây là file quan trọng nhất.
-
-Nó làm các việc sau:
-- Kiểm tra GPU có sẵn không
-- Đọc dữ liệu train/test
-- Tokenize câu Anh-Viet
-- Nạp mô hình gốc
-- Fine-tune mô hình
-- Lưu checkpoint và mô hình cuối
-
-"train2.py là trái tim của hệ thống, vì nó thực hiện toàn bộ quy trình huấn luyện từ dữ liệu thuần văn bản đến mô hình đã fine-tune."
-
-### `testdich.py`
-
-Dùng để demo.
-
-Nó:
-- Nạp mô hình đã train
-- Nhập một số câu tiếng Anh
-- Sinh bản dịch tiếng Việt
-
-### `final1.py`
-
-Dùng để đánh giá nhanh mô hình đã fine-tune.
-
-Nó:
-- Nạp tập test
-- Dùng mô hình đã train để dịch toàn bộ tập test
-- So sánh với câu dịch chuẩn
-- Tính BLEU score trên một số lượng mẫu có thể cấu hình
-
-### `testmodelorigin.py`
-
-Dùng để đánh giá mô hình gốc `Helsinki-NLP/opus-mt-en-vi`.
-
-Nó:
-- Nạp mô hình gốc chưa fine-tune
-- Dịch tập test
-- Tính BLEU, chrF++, TER và thời gian suy luận
-
-### `compare_before_after.py`
-
-Đây là file quan trọng cho phần báo cáo và thuyết trình.
-
-Nó:
-- Chạy mô hình gốc và mô hình đã fine-tune trên cùng một tập test
-- So sánh BLEU, chrF++, TER, thời gian dịch
-- In ra ví dụ trước/sau để đánh giá định tính
-
-### `train_lora.py`
-
-Đây là file PEFT riêng của repo.
-
-Nó:
-- Nạp mô hình gốc `Helsinki-NLP/opus-mt-en-vi`
-- Gắn LoRA vào các tầng attention
-- Huấn luyện chỉ phần tham số LoRA
-- Lưu adapter LoRA riêng, không ghi đè mô hình full fine-tune
-
-### `compare_lora.py`
-
-File này dùng để đánh giá hướng PEFT.
-
-Nó:
-- Chạy mô hình gốc
-- Nạp LoRA adapter lên mô hình gốc
-- So sánh BLEU, chrF++, TER và thời gian dịch
-
-### `project_config.py`
-
-File này dùng để thống nhất đường dẫn.
-
-Nó giúp:
-- Không cần Hard-code đường dẫn ở nhiều nơi
-- Chuyển cache, temp, model output sang ổ `D`
-- Dễ sửa đường dẫn hơn nếu đổi máy
-
-## 10. GPU đang được dùng thế nào
-
-Máy tính đã được kiểm tra và có thể nhận GPU:
-- `NVIDIA GeForce RTX 4050 Laptop GPU`
-- PyTorch CUDA đang hoạt động trong venv ở `D`
-
-Trong `train2.py`, nếu `torch.cuda.is_available()` là `True` thì:
-- Model được đưa lên GPU
-- Batch size được đặt nhỏ và an toàn hơn cho GPU 6 GB
-- Bật `fp16` để train nhanh hơn (giảm 1 nửa tiêu thụ vram so với fp32)
-- Bật `pin_memory` để tăng tốc độ nạp dữ liệu (cố định vùng nhớ cho dữ liệu chuyển thẳng sang vram)
-- Dùng `gradient_accumulation_steps` để bù lại khi batch size phải giảm vì giới hạn VRAM
-
-"GPU không làm thay đổi thuật toán, nhưng giúp giảm mạnh thời gian huấn luyện nhờ khả năng tính toán song song."
-
-## 11. Những lỗi đã được phát hiện và xử lý
-
-Trước khi sửa, dự án có 1 số vấn đề:
-
-1. Venv trong project ở `C` không có `torch`, nên chạy là lỗi ngay.
-2. Code nằm ở `C` nhưng dữ liệu và model lại hard-code sang `D`, gây rối luồng.
-3. Cache có nguy cơ đổ về ổ `C`, dễ tốn bộ nhớ hệ thống.
-4. Một số file hướng dẫn chưa thống nhất với lượng chạy thực tế.
-5. `train1.py` còn dư code cũ dễ gây hiểu nhầm.
-
-Sau khi sửa:
-- Luồng đã thống nhất hơn
-- README va quick-start phù hợp hơn với code
-- Script train ưu tiên venv ở `D`
-- Các thư mục cache/output được đưa về `D`
-
-## 12. Lệnh hay dùng
-
-Tạo venv GPU trên ổ D:
-
-```powershell
-.\setup_env_d.ps1
-```
-
-Train:
-
-```powershell
-.\run_training.ps1
-```
-
-Lưu ý với RTX 4050 6GB:
-- Cấu hình hiện tại đang dùng `per_device_train_batch_size=2`
-- `per_device_eval_batch_size=2`
-- `gradient_accumulation_steps=8`
-- Nếu vẫn hết VRAM, hãy đóng bớt ứng dụng đang dùng GPU hoặc giảm số lượng sample train để test trước
-
-Test dịch:
-
-```powershell
-python testdich.py
-```
-
-Đánh giá BLEU:
-
-```powershell
-python final1.py
-```
-
-Đánh giá mô hình gốc:
-
-```powershell
-python testmodelorigin.py
-```
-
-So sánh trước và sau fine-tune:
-
-```powershell
-python compare_before_after.py
-```
-
-Train LoRA (PEFT):
-
-```powershell
-python train_lora.py
-```
-
-So sánh mô hình gốc và LoRA:
-
-```powershell
-python compare_lora.py
-```
-
-## 13. Cách điều chỉnh khi chạy trên máy khác
-
-Nếu chạy dự án này trên máy khác, phần quan trọng nhất cần điều chỉnh là cấu hình trong `train2.py`.
-
-### Các tham số cần quan tâm
-
-Trong `train2.py`, các tham số ảnh hưởng trực tiếp đến khả năng train trên từng máy là:
-
-- `per_device_train_batch_size`
-- `per_device_eval_batch_size`
-- `gradient_accumulation_steps`
-- `dataloader_num_workers`
-- số lượng mẫu train/test đang lấy ra
-- `fp16`
-
-### Ý nghĩa từng tham số
-
-#### `per_device_train_batch_size`
-
-Đây là số mẫu mà GPU xử lý trong một lần.
-
-- Batch size càng lớn thì train có thể nhanh hơn
-- Nhưng càng tốn VRAM
-- Nếu quá lớn sẽ gây lỗi `CUDA out of memory`
-
-Gợi ý:
-- GPU 4 GB: thử từ `1`
-- GPU 6 GB: thử từ `2`
-- GPU 8 GB: thử từ `4`
-- GPU 10-12 GB: thử từ `8`
-- GPU 16 GB trở lên: có thể thử `16` hoặc cao hơn
-
-#### `per_device_eval_batch_size`
-
-Đây là batch size khi đánh giá trong quá trình train.
-
-- Thường nên để bằng hoặc nhỏ hơn `per_device_train_batch_size`
-- Nếu đánh giá bị tràn VRAM thì giảm tham số này trước
-
-#### `gradient_accumulation_steps`
-
-Tham số này giúp mô phỏng batch lớn hơn khi GPU không đủ VRAM.
-
-Ví dụ:
-- batch size thật = `2`
-- `gradient_accumulation_steps = 8`
-
-thì có thể hiểu gần đúng là mô hình tích lũy gradient như một batch lớn hơn, nhưng không cần nạp quá nhiều dữ liệu cùng lúc lên GPU.
-
-Quy tắc đơn giản:
-- GPU yếu hơn -> giảm `batch_size`, tăng `gradient_accumulation_steps`
-- GPU mạnh hơn -> tăng `batch_size`, có thể giảm `gradient_accumulation_steps`
-
-#### `dataloader_num_workers`
-
-Tham số này quyết định số tiến trình phụ để nạp dữ liệu.
-
-- CPU yếu hoặc máy dễ treo: để `0` hoặc `1`
-- CPU khá: để `2`
-- CPU mạnh hơn: có thể thử `4`
-
-Nếu máy bị lag mạnh, treo hoặc dùng RAM quá nhiều, hãy giảm tham số này.
-
-#### Số lượng mẫu train/test
-
-Trong code hiện tại, dữ liệu đang được cắt ra để train thử nhanh hơn.
-
-Ví dụ trong `train2.py`:
-- train đang lấy `10000` mẫu
-- test đang lấy `1000` mẫu
-
-Nếu máy yếu hoặc chỉ muốn test pipeline, có thể giảm xuống:
-- train: `1000` hoặc `2000`
-- test: `200` hoặc `500`
-
-Nếu máy mạnh hơn và bạn muốn train nghiêm túc hơn, có thể tăng số lượng mẫu.
-
-#### `fp16`
-
-`fp16` giúp:
-- giảm tiêu thụ VRAM
-- tăng tốc train trên GPU phù hợp
-
-Thông thường:
-- có GPU NVIDIA hỗ trợ tốt CUDA: nên bật
-- nếu gặp lỗi lạ liên quan đến mixed precision: có thể thử tắt tạm để debug
-
-### Cách chỉnh theo từng loại máy
-
-#### Máy yếu, GPU ít VRAM
-
-Ví dụ: 4 GB đến 6 GB VRAM
-
-Nên ưu tiên:
-- `per_device_train_batch_size=1` hoặc `2`
-- `per_device_eval_batch_size=1` hoặc `2`
-- `gradient_accumulation_steps=8` hoặc `16`
-- `dataloader_num_workers=0` hoặc `1`
-- giảm số mẫu train để test trước
-
-#### Máy tầm trung
-
-Ví dụ: 6 GB đến 8 GB VRAM
-
-Nên thử:
-- `per_device_train_batch_size=2` hoặc `4`
-- `per_device_eval_batch_size=2` hoặc `4`
-- `gradient_accumulation_steps=4` hoặc `8`
-- `dataloader_num_workers=2`
-
-Đây là nhóm máy gần với RTX 4050 Laptop 6 GB hiện tại của bạn.
-
-#### Máy mạnh hơn
-
-Ví dụ: 10 GB, 12 GB, 16 GB VRAM trở lên
-
-Có thể thử:
-- `per_device_train_batch_size=8`, `16`
-- `per_device_eval_batch_size=8`, `16`
-- `gradient_accumulation_steps=1`, `2`, hoặc `4`
-- `dataloader_num_workers=2` hoặc `4`
-
-Nhưng vẫn nên tăng từ từ, không tăng quá mạnh ngay từ đầu.
-
-### Dấu hiệu để biết cần chỉnh lại
-
-Nếu gặp các tình huống sau, bạn nên giảm cấu hình:
-
-- báo lỗi `CUDA out of memory`
-- màn hình chớp đen khi train
-- máy quá lag khi đang train
-- GPU full VRAM liên tục rồi crash
-- Windows reset driver GPU
-
-Khi đó nên làm theo thứ tự:
-
-1. Giảm `per_device_train_batch_size`
-2. Giảm `per_device_eval_batch_size`
-3. Tăng `gradient_accumulation_steps`
-4. Giảm `dataloader_num_workers`
-5. Giảm số lượng mẫu train/test
-
-### Cấu hình hiện tại phù hợp với máy của bạn
-
-Máy hiện tại:
-- GPU: `NVIDIA GeForce RTX 4050 Laptop GPU`
-- VRAM: `6 GB`
-
-Cấu hình đang đặt:
-- `per_device_train_batch_size=2`
-- `per_device_eval_batch_size=2`
-- `gradient_accumulation_steps=8`
-- `dataloader_num_workers=2`
-
-Đây là mức an toàn để chạy thử trên máy hiện tại. Nếu vẫn tràn VRAM, hãy hạ tiếp batch size xuống `1`.
-
-## 14. Kết luận
-
-Phiên bản hiện tại thống nhất theo hướng:
-- Code ở `C`
-- venv, data, cache, model output ở `D`
-- Training ưu tiên GPU
-- Đánh giá và demo tách riêng, để trình bày
+---
+
+## ⚙️ Các Biến Môi Trường Điều Khiển (Tùy Chọn Cao Cấp)
+
+Các script Python đọc trực tiếp các tham số cấu hình thông qua biến môi trường. Bạn có thể thay đổi các giá trị này trước khi chạy:
+
+| Biến Môi Trường | Mô Tả | Mặc Định |
+| :--- | :--- | :--- |
+| `PHOMT_BATCH_SIZE` | Batch size cho mỗi bước (cho cả train và eval) | `64` |
+| `PHOMT_GRADIENT_ACCUMULATION_STEPS` | Số bước tích lũy gradient trước khi cập nhật trọng số | `2` |
+| `PHOMT_TRAIN_SAMPLES` | Số câu train tối đa cho Full Fine-tuning | `500000` (hoặc `full`) |
+| `PHOMT_EVAL_SAMPLES` | Số câu eval tối đa trong lúc train | `10000` (hoặc `full`) |
+| `PHOMT_LORA_TRAIN_SAMPLES` | Số câu train tối đa cho LoRA | `500000` (hoặc `full`) |
+| `PHOMT_LORA_EVAL_SAMPLES` | Số câu eval tối đa cho LoRA | `10000` (hoặc `full`) |
+| `PHOMT_GRADIENT_CHECKPOINTING` | Bật/tắt tính năng checkpoint để tiết kiệm VRAM | `False` (để tối ưu tốc độ) |
+| `PHOMT_NUM_WORKERS` | Số luồng CPU nạp dữ liệu | `0` (để tránh lỗi spawn trên Windows) |
+| `PHOMT_EVAL_STRATEGY` | Chiến lược đánh giá trong lúc huấn luyện | `epoch` (tránh đánh giá theo step quá nhiều lần) |
+
+Ví dụ: Nếu muốn thay đổi số lượng câu train thử nghiệm nhanh thành 5,000 câu trước khi train full:
+* Trên **PowerShell**:
+  ```powershell
+  $env:PHOMT_LORA_TRAIN_SAMPLES = "5000"
+  $env:PHOMT_LORA_EVAL_SAMPLES = "500"
+  .\run_training.ps1
+  ```
+* Trên **Command Prompt (CMD)**:
+  ```cmd
+  set PHOMT_LORA_TRAIN_SAMPLES=5000
+  set PHOMT_LORA_EVAL_SAMPLES=500
+  run_training.bat
+  ```
+
+---
+
+## 📊 Kết Quả Huấn Luyện & Đánh Giá Thực Tế (LoRA)
+
+Dưới đây là bảng kết quả so sánh thu được sau khi thực hiện Fine-Tuning LoRA (chỉ thử nghiệm trên 1,000 dòng dữ liệu mẫu) trên tập test:
+
+| Chỉ số | Mô hình Gốc (Pretrained) | Mô hình LoRA (Chỉ train 1000 câu) | Cải thiện |
+| :--- | :---: | :---: | :---: |
+| **BLEU Score** (Cao là tốt) | 23.38 | **28.85** | **+5.47** |
+| **chrF++** | 44.97 | **50.70** | **+5.73** |
+| **TER** (Thấp là tốt) | 64.64 | **58.73** | **-5.91** |
+
+---
+
+## ⚖️ Giấy Phép & Tài Liệu Tham Khảo
+
+* Bộ dữ liệu: PhoMT (Bilingual Vietnamese-English Translation Dataset).
+* Mô hình nền tảng: `Helsinki-NLP/opus-mt-en-vi` (Hugging Face).

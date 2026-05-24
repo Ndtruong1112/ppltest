@@ -1,7 +1,14 @@
 # -*- coding: utf-8 -*-
 import json
 import os
+import sys
 import torch
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 from datasets import Dataset, DatasetDict
 from peft import LoraConfig, TaskType, get_peft_model
 from transformers import (
@@ -15,37 +22,25 @@ from transformers import (
 from project_config import CACHE_ROOT, DATA_DIR, RESULTS_DIR, configure_runtime_dirs
 
 
-def read_txt(path):
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"Khong tim thay file: {path}")
-    with open(path, "r", encoding="utf-8") as f:
-        return [line.strip() for line in f]
-
-
-def load_parallel_data(split, max_samples=None):
+def translation_generator(split, max_samples=None):
     en_path = os.path.join(DATA_DIR, split, f"{split}.en")
     vi_path = os.path.join(DATA_DIR, split, f"{split}.vi")
-    en_lines = read_txt(en_path)
-    vi_lines = read_txt(vi_path)
-
-    if len(en_lines) != len(vi_lines):
-        raise ValueError(
-            f"So dong khong khop o split '{split}': EN={len(en_lines)}, VI={len(vi_lines)}"
-        )
-
-    if max_samples is not None:
-        en_lines = en_lines[:max_samples]
-        vi_lines = vi_lines[:max_samples]
-
-    if not en_lines:
-        raise ValueError(f"Split '{split}' dang rong. Kiem tra lai du lieu trong {DATA_DIR}")
-
-    return {"en": en_lines, "vi": vi_lines}
+    if not os.path.exists(en_path) or not os.path.exists(vi_path):
+        raise FileNotFoundError(f"Khong tim thay file song ngu o split '{split}':\n  EN: {en_path}\n  VI: {vi_path}")
+    
+    with open(en_path, "r", encoding="utf-8") as f_en, open(vi_path, "r", encoding="utf-8") as f_vi:
+        count = 0
+        for line_en, line_vi in zip(f_en, f_vi):
+            yield {"en": line_en.strip(), "vi": line_vi.strip()}
+            count += 1
+            if max_samples is not None and count >= max_samples:
+                break
 
 
 def preprocess_function(examples, tokenizer):
-    model_inputs = tokenizer(examples["en"], max_length=128, truncation=True)
-    labels = tokenizer(text_target=examples["vi"], max_length=128, truncation=True)
+    max_length = int(os.getenv("PHOMT_MAX_LENGTH", "128"))
+    model_inputs = tokenizer(examples["en"], max_length=max_length, truncation=True)
+    labels = tokenizer(text_target=examples["vi"], max_length=max_length, truncation=True)
     model_inputs["labels"] = labels["input_ids"]
     return model_inputs
 
@@ -67,8 +62,10 @@ if __name__ == "__main__":
     configure_runtime_dirs()
 
     base_model_id = os.getenv("PHOMT_BASE_MODEL_ID", "Helsinki-NLP/opus-mt-en-vi")
-    train_samples = int(os.getenv("PHOMT_LORA_TRAIN_SAMPLES", "10000"))
-    eval_samples = int(os.getenv("PHOMT_LORA_EVAL_SAMPLES", "1000"))
+    train_samples_env = os.getenv("PHOMT_LORA_TRAIN_SAMPLES", "500000")
+    train_samples = None if train_samples_env.lower() in ("full", "none", "") else int(train_samples_env)
+    eval_samples_env = os.getenv("PHOMT_LORA_EVAL_SAMPLES", "10000")
+    eval_samples = None if eval_samples_env.lower() in ("full", "none", "") else int(eval_samples_env)
     output_dir = os.getenv("PHOMT_LORA_RESULTS_DIR", str(RESULTS_DIR / "lora_results"))
     adapter_output_dir = os.getenv("PHOMT_LORA_ADAPTER_DIR", str(RESULTS_DIR / "lora_adapter"))
 
@@ -84,18 +81,20 @@ if __name__ == "__main__":
     print(f"📦 Base model: {base_model_id}")
     print(f"📁 Adapter output: {adapter_output_dir}")
 
-    print("--- BƯỚC 1: ĐANG NẠP DỮ LIỆU ---")
+    print(f"--- BƯỚC 1: ĐANG NẠP DỮ LIỆU (Train: {train_samples_env}, Test: {eval_samples_env}) ---")
     raw_datasets = DatasetDict({
-        "train": Dataset.from_dict(load_parallel_data("train", max_samples=train_samples)),
-        "test": Dataset.from_dict(load_parallel_data("test", max_samples=eval_samples)),
+        "train": Dataset.from_generator(translation_generator, gen_kwargs={"split": "train", "max_samples": train_samples}),
+        "test": Dataset.from_generator(translation_generator, gen_kwargs={"split": "test", "max_samples": eval_samples}),
     })
 
     print("--- BƯỚC 2: TOKENIZE ---")
     tokenizer = AutoTokenizer.from_pretrained(base_model_id)
+    num_proc_default = "4" if (os.cpu_count() or 1) >= 4 else str(os.cpu_count() or 1)
+    num_proc = int(os.getenv("PHOMT_TOKENIZE_NUM_PROC", num_proc_default))
     tokenized_datasets = raw_datasets.map(
         preprocess_function,
         batched=True,
-        num_proc=1 if os.name == "nt" else min(4, os.cpu_count() or 1),
+        num_proc=num_proc,
         fn_kwargs={"tokenizer": tokenizer},
     )
 
@@ -103,7 +102,7 @@ if __name__ == "__main__":
     model_kwargs = {}
     if torch.cuda.is_available():
         model_kwargs["torch_dtype"] = torch.float16
-    model = AutoModelForSeq2SeqLM.from_pretrained(base_model_id, **model_kwargs).to(device)
+    model = AutoModelForSeq2SeqLM.from_pretrained(base_model_id, use_safetensors=True, **model_kwargs).to(device)
 
     lora_config = LoraConfig(
         task_type=TaskType.SEQ_2_SEQ_LM,
@@ -116,34 +115,55 @@ if __name__ == "__main__":
     model = get_peft_model(model, lora_config)
     model.print_trainable_parameters()
 
-    data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
+    data_collator = DataCollatorForSeq2Seq(tokenizer, model=None, label_pad_token_id=-100)
 
-    training_args = Seq2SeqTrainingArguments(
-        output_dir=output_dir,
-        evaluation_strategy="epoch",
-        learning_rate=2e-4,
-        per_device_train_batch_size=4 if torch.cuda.is_available() else 2,
-        per_device_eval_batch_size=4 if torch.cuda.is_available() else 2,
-        num_train_epochs=3,
-        weight_decay=0.01,
-        save_total_limit=2,
-        predict_with_generate=True,
-        fp16=torch.cuda.is_available(),
-        push_to_hub=False,
-        report_to="none",
-        logging_steps=50,
-        save_steps=500,
-        gradient_accumulation_steps=4 if torch.cuda.is_available() else 1,
-        dataloader_pin_memory=True if torch.cuda.is_available() else False,
-        dataloader_num_workers=2 if torch.cuda.is_available() else 0,
-    )
+    import inspect
+    sig = inspect.signature(Seq2SeqTrainingArguments.__init__)
+    
+    batch_size = int(os.getenv("PHOMT_BATCH_SIZE", "64"))
+    grad_checkpointing = os.getenv("PHOMT_GRADIENT_CHECKPOINTING", "False").lower() == "true"
+    grad_accum_steps = int(os.getenv("PHOMT_GRADIENT_ACCUMULATION_STEPS", "4" if torch.cuda.is_available() else "1"))
+
+    training_kwargs = {
+        "output_dir": output_dir,
+        "learning_rate": 2e-4,
+        "per_device_train_batch_size": batch_size,
+        "per_device_eval_batch_size": batch_size,
+        "num_train_epochs": 3,
+        "weight_decay": 0.01,
+        "save_total_limit": 2,
+        "predict_with_generate": False,
+        "fp16": torch.cuda.is_available(),
+        "push_to_hub": False,
+        "report_to": "none",
+        "logging_steps": 50,
+        "save_steps": 500,
+        "gradient_checkpointing": grad_checkpointing if torch.cuda.is_available() else False,
+        "gradient_accumulation_steps": grad_accum_steps if torch.cuda.is_available() else 1,
+        "dataloader_pin_memory": True if torch.cuda.is_available() else False,
+        "dataloader_num_workers": int(os.getenv("PHOMT_NUM_WORKERS", "0")),
+    }
+    
+    eval_strategy = os.getenv("PHOMT_EVAL_STRATEGY", "epoch")
+    if "eval_strategy" in sig.parameters:
+        training_kwargs["eval_strategy"] = eval_strategy
+    else:
+        training_kwargs["evaluation_strategy"] = eval_strategy
+        
+    if torch.cuda.is_available():
+        if "train_sampling_strategy" in sig.parameters:
+            training_kwargs["train_sampling_strategy"] = "group_by_length"
+        elif "group_by_length" in sig.parameters:
+            training_kwargs["group_by_length"] = True
+
+    training_args = Seq2SeqTrainingArguments(**training_kwargs)
 
     trainer = Seq2SeqTrainer(
         model=model,
         args=training_args,
         train_dataset=tokenized_datasets["train"],
         eval_dataset=tokenized_datasets["test"],
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         data_collator=data_collator,
     )
 
